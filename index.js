@@ -26,7 +26,19 @@ async function run() {
         // Connect the client to the server	(optional starting in v4.7)
         await client.connect();
 
+        const db = client.db('style_deco_db');
+        const decorationServicesCollection = db.collection('packages');
+        
+        // packages api
+        app.get('/packages', async(req, res)=>{
 
+        })
+
+        app.post('/packages', async(req, res)=>{
+            const package = req.body;
+            const result = await decorationServicesCollection.insertOne(package);
+            res.send(result);
+        })
 
 
 
