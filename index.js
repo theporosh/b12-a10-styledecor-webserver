@@ -28,13 +28,19 @@ async function run() {
 
         const db = client.db('style_deco_db');
         const decorationServicesCollection = db.collection('packages');
+
+        // packages api (GET)
+        app.get('/packages', async (req, res) => {
+            try {
+                const result = await decorationServicesCollection.find().toArray();
+                res.send(result);
+            } catch (error) {
+                res.status(500).send({ message: "Failed to load packages", error });
+            }
+        });
+
         
-        // packages api
-        app.get('/packages', async(req, res)=>{
-
-        })
-
-        app.post('/packages', async(req, res)=>{
+        app.post('/packages', async (req, res) => {
             const package = req.body;
             const result = await decorationServicesCollection.insertOne(package);
             res.send(result);
