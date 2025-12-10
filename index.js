@@ -31,7 +31,29 @@ async function run() {
         const allDecorationServiceCol = db.collection('services');
         const bookingsCollection = db.collection('bookings');
 
-        // packages api (GET)
+        // User collection
+        const userCollection = db.collection('users');
+
+        // users related apis
+        app.post('/users', async (req, res) => {
+            const user = req.body;
+            user.role = 'user';
+            user.createdAt = new Date();
+
+            const email = user.email;
+            const userExists = await userCollection.findOne({ email })
+
+            if(userExists){
+                return res.send({message: 'user exists'})
+            }
+
+            const result = await userCollection.insertOne(user);
+            res.send(result);
+        })
+
+        
+
+        // Home section(Our Decoration Packages) packages api (GET 12 data)
         app.get('/packages', async (req, res) => {
             try {
                 const result = await decorationServicesCollection.find().toArray();
@@ -41,8 +63,8 @@ async function run() {
             }
         });
 
-        // all services api(GET) with search / filter / limit
-        // GET /packages with search, category, minPrice, maxPrice, sort, page, limit
+        // all services api(GET) with search / filter / limit (21 Data)
+        // GET /services with search, category, minPrice, maxPrice, sort, page, limit
         app.get('/services', async (req, res) => {
             try {
                 const {
@@ -102,7 +124,7 @@ async function run() {
             }
         });
 
-        // Endpoint to get unique categories (for filter dropdown)
+        // To get unique categories (for filter dropdown) json : category filter
         app.get('/categories', async (req, res) => {
             try {
                 const categories = await allDecorationServiceCol.distinct("category");
@@ -117,7 +139,7 @@ async function run() {
             }
         });
 
-        // allServices er book now button api to get single service into details page
+        // allServices book now button api to get (single service) into details page
         app.get("/services/:id", async (req, res) => {
             const { id } = req.params;
             try {
@@ -130,7 +152,8 @@ async function run() {
         });
 
 
-        // by clicking Book Now Service Details Page save booking data into DB
+        // by clicking Book Now Service Details Page save booking data into MongoDB
+        // collection name (bookings)
         app.post("/bookings", async (req, res) => {
             try {
                 const bookingData = req.body;
@@ -142,6 +165,7 @@ async function run() {
         });
 
 
+        // thunder client test data first api
         app.post('/packages', async (req, res) => {
             const package = req.body;
             const result = await decorationServicesCollection.insertOne(package);
