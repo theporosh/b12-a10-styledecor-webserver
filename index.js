@@ -2,7 +2,7 @@ const express = require('express')
 const cors = require('cors');
 const app = express();
 require('dotenv').config();
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
 const port = process.env.PORT || 3000
 
@@ -29,6 +29,7 @@ async function run() {
         const db = client.db('style_deco_db');
         const decorationServicesCollection = db.collection('packages');
         const allDecorationServiceCol = db.collection('services');
+        const bookingsCollection = db.collection('bookings');
 
         // packages api (GET)
         app.get('/packages', async (req, res) => {
@@ -113,6 +114,30 @@ async function run() {
                     message: "Failed to load categories",
                     error: error.message
                 });
+            }
+        });
+
+        // allServices er book now button api to get single service into details page
+        app.get("/services/:id", async (req, res) => {
+            const { id } = req.params;
+            try {
+                const service = await allDecorationServiceCol.findOne({ _id: new ObjectId(id) });
+                if (!service) return res.status(404).send({ message: "Service not found" });
+                res.send(service);
+            } catch (err) {
+                res.status(500).send({ message: "Failed to fetch service", error: err });
+            }
+        });
+
+
+        // by clicking Book Now Service Details Page save booking data into DB
+        app.post("/bookings", async (req, res) => {
+            try {
+                const bookingData = req.body;
+                const result = await bookingsCollection.insertOne(bookingData);
+                res.send(result);
+            } catch (error) {
+                res.status(500).send({ message: "Failed to create booking", error });
             }
         });
 
