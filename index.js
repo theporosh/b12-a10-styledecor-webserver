@@ -16,7 +16,7 @@ const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster
 const client = new MongoClient(uri, {
     serverApi: {
         version: ServerApiVersion.v1,
-        strict: true,
+        strict: false,
         deprecationErrors: true,
     }
 });
@@ -28,6 +28,7 @@ async function run() {
 
         const db = client.db('style_deco_db');
         const decorationServicesCollection = db.collection('packages');
+        const allDecorationServiceCol = db.collection('services');
 
         // packages api (GET)
         app.get('/packages', async (req, res) => {
@@ -39,14 +40,88 @@ async function run() {
             }
         });
 
-        
+        // all services api(GET) with search / filter / limit
+        // GET /packages with search, category, minPrice, maxPrice, sort, page, limit
+        app.get('/services', async (req, res) => {
+            try {
+                const {
+                    search = '',
+                    category,
+                    minPrice,
+                    maxPrice,
+                    sort = 'asc', // asc or desc (based on price)
+                    page = 1,
+                    limit = 9
+                } = req.query;
+
+                const query = {};
+
+                // Text search on title (case-insensitive)
+                if (search) {
+                    query.title = { $regex: search, $options: 'i' };
+                }
+
+                // Category filter
+                if (category && category !== 'All') {
+                    query.category = category;
+                }
+
+                // Price range filter
+                if (minPrice || maxPrice) {
+                    query.price = {};
+                    if (minPrice) query.price.$gte = parseInt(minPrice, 10);
+                    if (maxPrice) query.price.$lte = parseInt(maxPrice, 10);
+                }
+
+                // Build cursor
+                let cursor = allDecorationServiceCol.find(query);
+
+                // Sorting (by price)
+                const sortOrder = sort === 'asc' ? 1 : -1;
+                cursor = cursor.sort({ price: sortOrder });
+
+                // Pagination
+                const pageInt = parseInt(page, 10);
+                const limitInt = parseInt(limit, 10);
+                const skip = (pageInt - 1) * limitInt;
+
+                const total = await allDecorationServiceCol.countDocuments(query);
+                const packages = await cursor.skip(skip).limit(limitInt).toArray();
+
+                res.send({
+                    data: packages,
+                    total,
+                    page: pageInt,
+                    limit: limitInt,
+                    totalPages: Math.ceil(total / limitInt),
+                });
+            } catch (error) {
+                console.error('GET /packages error:', error);
+                res.status(500).send({ message: 'Failed to load packages', error });
+            }
+        });
+
+        // Endpoint to get unique categories (for filter dropdown)
+        app.get('/categories', async (req, res) => {
+            try {
+                const categories = await allDecorationServiceCol.distinct("category");
+
+                res.send(categories);
+            } catch (error) {
+                console.error("GET /categories error:", error);
+                res.status(500).send({
+                    message: "Failed to load categories",
+                    error: error.message
+                });
+            }
+        });
+
+
         app.post('/packages', async (req, res) => {
             const package = req.body;
             const result = await decorationServicesCollection.insertOne(package);
             res.send(result);
         })
-
-
 
 
         // Send a ping to confirm a successful connection
