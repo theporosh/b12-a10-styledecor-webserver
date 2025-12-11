@@ -3,6 +3,7 @@ const cors = require('cors');
 const app = express();
 require('dotenv').config();
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const stripe = require('stripe')(process.env.STRIPE__SEC);
 
 const port = process.env.PORT || 3000
 
@@ -196,14 +197,8 @@ async function run() {
             }
         });
 
-        // booking for payment get api for certain services
-        // app.get("/bookings/:id", async (req, res) => {
-        //     const id = req.params.id;
-        //     const query = { _id: id }
-        //     const result = await bookingsCollection.findOne(query);
-        //     res.send(result);
-        // })
 
+        // booking for payment get api for certain services
         app.get("/bookings/id/:id", async (req, res) => {
             try {
                 const id = req.params.id;
@@ -213,8 +208,6 @@ async function run() {
                 res.status(500).send({ message: "Failed to get booking", error });
             }
         });
-
-
 
 
         // booking delete/cancel api by id
@@ -227,6 +220,48 @@ async function run() {
                 res.status(500).send({ message: "Failed to delete booking", error });
             }
         });
+
+
+        // payment related apis
+        app.post('/create-checkout-session', async (req, res) => {
+            const paymentInfo = req.body;
+            const amount = paymentInfo.price;
+            const session = await stripe.checkout.sessions.create({
+                line_items: [
+                    {
+                        price_data: {
+                            currency: 'USD',
+                            unit_amount: amount,
+                            product_data: {
+                                name: paymentInfo.serviceTitle
+                            }
+                        },
+
+                        quantity: 1,
+                    },
+                ],
+                customer_email: paymentInfo.customerEmail,
+                mode: 'payment',
+                metadata: {
+                    serviceId: paymentInfo.serviceId
+                },
+                success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+                cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancelled`,
+            })
+
+            console.log(session)
+            res.send({ url: session.url })
+        })
+
+
+        app.patch('/payment-success', async (req, res) => { 
+            const sessionId = req.query.session_id;
+            // console.log('session id', sessionId);
+            const session = await stripe.checkout.sessions.retrieve(sessionId);
+            console.log('session retrieve', session)
+
+            res.send({success: true})
+        })
 
         // thunder client test data first api
         app.post('/packages', async (req, res) => {
