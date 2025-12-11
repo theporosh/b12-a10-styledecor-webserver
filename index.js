@@ -196,6 +196,27 @@ async function run() {
             }
         });
 
+        // booking for payment get api for certain services
+        // app.get("/bookings/:id", async (req, res) => {
+        //     const id = req.params.id;
+        //     const query = { _id: id }
+        //     const result = await bookingsCollection.findOne(query);
+        //     res.send(result);
+        // })
+
+        app.get("/bookings/id/:id", async (req, res) => {
+            try {
+                const id = req.params.id;
+                const booking = await bookingsCollection.findOne({ _id: new ObjectId(id) });
+                res.send(booking);
+            } catch (error) {
+                res.status(500).send({ message: "Failed to get booking", error });
+            }
+        });
+
+
+
+
         // booking delete/cancel api by id
         app.delete("/bookings/:id", async (req, res) => {
             try {
