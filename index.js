@@ -265,8 +265,21 @@ async function run() {
             const sessionId = req.query.session_id;
             // console.log('session id', sessionId);
             const session = await stripe.checkout.sessions.retrieve(sessionId);
-            console.log('session retrieve', session)
-            
+            // console.log('session retrieve', session)
+
+            const transactionId = session.payment_intent;
+            const query = { transactionId: transactionId }
+
+            const paymentExist = await paymentCollection.findOne(query);
+            console.log(paymentExist);
+            if(paymentExist){
+                return res.send({
+                    message: 'already exits', 
+                    transactionId,
+                    trackingId: paymentExist.trackingId
+                })
+            }
+
             if (session.payment_status === 'paid') {
                 const id = session.metadata.serviceId;
                 const query = { _id: new ObjectId(id) }
@@ -285,17 +298,20 @@ async function run() {
                     serviceId: session.metadata.serviceId,
                     serviceTitle: session.metadata.serviceTitle,
                     transactionId: session.payment_intent,
-                    paymentStatus : session.payment_status,
-                    paidAt : new Date()
-                    
+                    paymentStatus: session.payment_status,
+                    paidAt: new Date(),
+                    trackingId: trackingId
+
                 }
-                if(session.payment_status === 'paid'){
+                if (session.payment_status === 'paid') {
                     const resultPayment = await paymentCollection.insertOne(payment);
-                    res.send({success: true, 
-                        modifyService: result, 
+                    res.send({
+                        success: true,
+                        modifyService: result,
                         trackingId: trackingId,
-                        transactionId : session.payment_intent,
-                        paymentInfo: resultPayment})
+                        transactionId: session.payment_intent,
+                        paymentInfo: resultPayment
+                    })
                 }
 
                 // res.send(result)
