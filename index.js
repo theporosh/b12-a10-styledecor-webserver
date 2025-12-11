@@ -7,6 +7,9 @@ const stripe = require('stripe')(process.env.STRIPE__SEC);
 
 const port = process.env.PORT || 3000
 
+const trackingId = new ObjectId().toString();
+console.log(trackingId);
+
 // middleware
 app.use(express.json());
 app.use(cors());
@@ -32,8 +35,11 @@ async function run() {
         const allDecorationServiceCol = db.collection('services');
         const bookingsCollection = db.collection('bookings');
 
-        // User collection
+        // User collection db
         const userCollection = db.collection('users');
+
+        // payment history db
+        const paymentCollection = db.collection('payments');
 
         // users related apis
         app.post('/users', async (req, res) => {
@@ -243,7 +249,8 @@ async function run() {
                 customer_email: paymentInfo.customerEmail,
                 mode: 'payment',
                 metadata: {
-                    serviceId: paymentInfo.serviceId
+                    serviceId: paymentInfo.serviceId,
+                    serviceTitle: paymentInfo.serviceTitle
                 },
                 success_url: `${process.env.SITE_DOMAIN}/dashboard/payment-success?session_id={CHECKOUT_SESSION_ID}`,
                 cancel_url: `${process.env.SITE_DOMAIN}/dashboard/payment-cancelled`,
@@ -259,16 +266,39 @@ async function run() {
             // console.log('session id', sessionId);
             const session = await stripe.checkout.sessions.retrieve(sessionId);
             console.log('session retrieve', session)
+            
             if (session.payment_status === 'paid') {
                 const id = session.metadata.serviceId;
                 const query = { _id: new ObjectId(id) }
                 const update = {
                     $set: {
                         status: 'Paid',
+                        trackingId: trackingId
                     }
                 }
                 const result = await bookingsCollection.updateOne(query, update);
-                res.send(result)
+
+                const payment = {
+                    amount: session.amount_total,
+                    currency: session.currency,
+                    customerEmail: session.customer_email,
+                    serviceId: session.metadata.serviceId,
+                    serviceTitle: session.metadata.serviceTitle,
+                    transactionId: session.payment_intent,
+                    paymentStatus : session.payment_status,
+                    paidAt : new Date()
+                    
+                }
+                if(session.payment_status === 'paid'){
+                    const resultPayment = await paymentCollection.insertOne(payment);
+                    res.send({success: true, 
+                        modifyService: result, 
+                        trackingId: trackingId,
+                        transactionId : session.payment_intent,
+                        paymentInfo: resultPayment})
+                }
+
+                // res.send(result)
             }
 
             res.send({ success: false })
