@@ -43,15 +43,28 @@ async function run() {
             const email = user.email;
             const userExists = await userCollection.findOne({ email })
 
-            if(userExists){
-                return res.send({message: 'user exists'})
+            if (userExists) {
+                return res.send({ message: 'user exists' })
             }
 
             const result = await userCollection.insertOne(user);
             res.send(result);
         })
 
-        
+        // user get by email for role
+        app.get("/users/:email", async (req, res) => {
+            const email = req.params.email;
+
+            const user = await userCollection.findOne({ email });
+
+            if (!user) {
+                return res.status(404).send({ message: "User not found" });
+            }
+
+            res.send(user);
+        });
+
+
 
         // Home section(Our Decoration Packages) packages api (GET 12 data)
         app.get('/packages', async (req, res) => {
@@ -152,6 +165,7 @@ async function run() {
         });
 
 
+        // booking post api
         // by clicking Book Now Service Details Page save booking data into MongoDB
         // collection name (bookings)
         app.post("/bookings", async (req, res) => {
@@ -164,6 +178,23 @@ async function run() {
             }
         });
 
+        // booking get api by email
+        // Get all bookings of a specific user
+        app.get("/bookings/:email", async (req, res) => {
+            try {
+                const email = req.params.email;
+
+                const bookings = await bookingsCollection
+                    .find({ customerEmail: email })
+                    .sort({ bookingDate: 1 }) // sort by nearest date
+                    .toArray();
+
+                res.send(bookings);
+
+            } catch (error) {
+                res.status(500).send({ message: "Failed to load bookings", error });
+            }
+        });
 
         // thunder client test data first api
         app.post('/packages', async (req, res) => {
