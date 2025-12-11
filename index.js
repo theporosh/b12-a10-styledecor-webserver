@@ -254,13 +254,24 @@ async function run() {
         })
 
 
-        app.patch('/payment-success', async (req, res) => { 
+        app.patch('/payment-success', async (req, res) => {
             const sessionId = req.query.session_id;
             // console.log('session id', sessionId);
             const session = await stripe.checkout.sessions.retrieve(sessionId);
             console.log('session retrieve', session)
+            if (session.payment_status === 'paid') {
+                const id = session.metadata.serviceId;
+                const query = { _id: new ObjectId(id) }
+                const update = {
+                    $set: {
+                        status: 'Paid',
+                    }
+                }
+                const result = await bookingsCollection.updateOne(query, update);
+                res.send(result)
+            }
 
-            res.send({success: true})
+            res.send({ success: false })
         })
 
         // thunder client test data first api
