@@ -196,6 +196,17 @@ async function run() {
             }
         });
 
+        // booking delete/cancel api by id
+        app.delete("/bookings/:id", async (req, res) => {
+            try {
+                const id = req.params.id;
+                const result = await bookingsCollection.deleteOne({ _id: new ObjectId(id) });
+                res.send(result);
+            } catch (error) {
+                res.status(500).send({ message: "Failed to delete booking", error });
+            }
+        });
+
         // thunder client test data first api
         app.post('/packages', async (req, res) => {
             const package = req.body;
