@@ -68,10 +68,13 @@ async function run() {
         // User collection db
         const userCollection = db.collection('users');
 
+        // decorators collection db
+        const decoratorsCollection = db.collection('decorators');
+
         // payment history db
         const paymentCollection = db.collection('payments');
 
-        // users related apis
+        // users related apis to store in database for the role
         app.post('/users', async (req, res) => {
             const user = req.body;
             user.role = 'user';
@@ -101,6 +104,28 @@ async function run() {
             res.send(user);
         });
 
+        // decorators related apis get
+        // ApproveDecorators
+        app.get('/decorators', async (req, res) => {
+            const query = {}
+            if(req.query.status){
+                query.status = req.query.status;
+            }
+            const cursor = decoratorsCollection.find(query)
+            const result = await cursor.toArray();
+            res.send(result);
+        })
+
+        // decorators related apis post
+        // Decorators
+        app.post('/decorators', async (req, res) => {
+            const decorator = req.body;
+            decorator.status = 'pending';
+            decorator.createdAt = new Date();
+
+            const result = await decoratorsCollection.insertOne(decorator);
+            res.send(result);
+        })
 
 
         // Home section(Our Decoration Packages) packages api (GET 12 data)
@@ -368,7 +393,7 @@ async function run() {
                     return res.status(403).send({ message: 'forbidden access' })
                 }
             }
-            const cursor = paymentCollection.find(query);
+            const cursor = paymentCollection.find(query).sort({ paidAt: -1 });
             const result = await cursor.toArray();
             res.send(result);
         })
