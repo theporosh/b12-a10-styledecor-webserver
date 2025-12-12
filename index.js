@@ -108,13 +108,54 @@ async function run() {
         // ApproveDecorators
         app.get('/decorators', async (req, res) => {
             const query = {}
-            if(req.query.status){
+            if (req.query.status) {
                 query.status = req.query.status;
             }
             const cursor = decoratorsCollection.find(query)
             const result = await cursor.toArray();
             res.send(result);
         })
+
+        // decorators related apis update status pending to approved and user role update
+        // ApproveDecorators
+        app.patch('/decorators/:id', verifyFBToken, async (req, res) => {
+            const { id } = req.params;
+            const { status } = req.body;
+            const result = await decoratorsCollection.updateOne(
+                { _id: new ObjectId(id) },
+                { $set: { status } }
+            );
+            if (status === 'approved') {
+                const email = req.body.email;
+                const userQuery = { email }
+                const updateUser = {
+                    $set : {
+                        role : 'decorator'
+                    }
+                }
+                const userResult = await userCollection.updateOne(userQuery, updateUser);
+            }
+
+            res.send(result);
+        });
+
+        // decorators related apis delete status
+        // ApproveDecorators
+        app.delete("/decorators/:id", async (req, res) => {
+            try {
+                const id = req.params.id;
+                const result = await decoratorsCollection.deleteOne({ _id: new ObjectId(id) });
+
+                if (result.deletedCount === 0) {
+                    return res.status(404).send({ message: "Decorator not found" });
+                }
+
+                res.send({ message: "Decorator deleted successfully", result });
+            } catch (error) {
+                res.status(500).send({ message: "Failed to delete decorator", error });
+            }
+        });
+
 
         // decorators related apis post
         // Decorators
