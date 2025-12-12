@@ -10,9 +10,39 @@ const port = process.env.PORT || 3000
 const trackingId = new ObjectId().toString();
 console.log(trackingId);
 
+const admin = require("firebase-admin");
+
+const serviceAccount = require("./styledecor-firebase-adminsdk.json");
+
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+});
+
 // middleware
 app.use(express.json());
 app.use(cors());
+
+// jwt middleware
+const verifyFBToken = async (req, res, next) => {
+    // console.log('headers in middleware console', req.headers?.authorization)
+    const token = req.headers.authorization;
+
+    if (!token) {
+        return res.status(401).send({ message: 'unauthorized access' })
+    }
+
+    try {
+        const idToken = token.split(' ')[1];
+        const decoded = await admin.auth().verifyIdToken(idToken)
+        console.log('decoded in the token', decoded);
+        req.decoded_email = decoded.email;
+        next();
+    }
+    catch (err) {
+        return res.status(401).send({ message: 'unauthorized access' })
+    }
+
+}
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.y6dazfp.mongodb.net/?appName=Cluster0`;
 
@@ -229,6 +259,7 @@ async function run() {
 
 
         // payment related apis
+        // payment create via stripe
         app.post('/create-checkout-session', async (req, res) => {
             const paymentInfo = req.body;
             const amount = paymentInfo.price;
@@ -260,7 +291,7 @@ async function run() {
             res.send({ url: session.url })
         })
 
-
+        // payment status update and store to database history called collection payments
         app.patch('/payment-success', async (req, res) => {
             const sessionId = req.query.session_id;
             // console.log('session id', sessionId);
@@ -272,9 +303,9 @@ async function run() {
 
             const paymentExist = await paymentCollection.findOne(query);
             console.log(paymentExist);
-            if(paymentExist){
+            if (paymentExist) {
                 return res.send({
-                    message: 'already exits', 
+                    message: 'already exits',
                     transactionId,
                     trackingId: paymentExist.trackingId
                 })
@@ -319,6 +350,33 @@ async function run() {
 
             res.send({ success: false })
         })
+
+
+        // payment history get from collection: payments to show in ui payment history
+        //payment history
+        app.get('/payments', verifyFBToken, async (req, res) => {
+            const email = req.query.email;
+            const query = {}
+
+            // console.log('server headers', req.headers);
+
+            if (email) {
+                query.customerEmail = email;
+
+                // check email address
+                if (email !== req.decoded_email) {
+                    return res.status(403).send({ message: 'forbidden access' })
+                }
+            }
+            const cursor = paymentCollection.find(query);
+            const result = await cursor.toArray();
+            res.send(result);
+        })
+
+
+
+
+
 
         // thunder client test data first api
         app.post('/packages', async (req, res) => {
