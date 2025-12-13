@@ -74,6 +74,21 @@ async function run() {
         // payment history db
         const paymentCollection = db.collection('payments');
 
+        // middleware admin before allowing admin activity
+        // must be used after verifyFBToken middleware
+        const verifyAdmin = async (req, res, next) => {
+            const email = req.decoded_email;
+            const query = { email };
+            const user = await userCollection.findOne(query);
+
+            if (!user || user.role !== 'admin') {
+                return res.status(403).send({ message: 'forbidden access' });
+            }
+
+            next();
+        }
+
+
         // users related apis to get the all users from database for the role
         app.get('/users', verifyFBToken, async (req, res) => {
             const cursor = userCollection.find();
@@ -82,7 +97,7 @@ async function run() {
         })
 
         // users related apis to change the role as admin
-        app.patch('/users/:id', async (req, res) => {
+        app.patch('/users/:id/role', verifyFBToken, verifyAdmin, async (req, res) => {
             const id = req.params.id;
             const roleInfo = req.body;
             const query = { _id: new ObjectId(id) }
