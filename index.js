@@ -74,6 +74,27 @@ async function run() {
         // payment history db
         const paymentCollection = db.collection('payments');
 
+        // users related apis to get the all users from database for the role
+        app.get('/users', verifyFBToken, async (req, res) => {
+            const cursor = userCollection.find();
+            const result = await cursor.toArray();
+            res.send(result);
+        })
+
+        // users related apis to change the role as admin
+        app.patch('/users/:id', async (req, res) => {
+            const id = req.params.id;
+            const roleInfo = req.body;
+            const query = { _id: new ObjectId(id) }
+            const updatedDoc = {
+                $set: {
+                    role: roleInfo.role
+                }
+            }
+            const result = await userCollection.updateOne(query, updatedDoc);
+            res.send(result);
+        })
+
         // users related apis to store in database for the role
         app.post('/users', async (req, res) => {
             const user = req.body;
@@ -92,17 +113,18 @@ async function run() {
         })
 
         // user get by email for role
-        app.get("/users/:email", async (req, res) => {
+        app.get('/users/:email/role', async (req, res) => {
             const email = req.params.email;
+            const query = { email }
+            const user = await userCollection.findOne(query);
 
-            const user = await userCollection.findOne({ email });
+            // if (!user) {
+            //     return res.status(404).send({ message: "User not found" });
+            // }
 
-            if (!user) {
-                return res.status(404).send({ message: "User not found" });
-            }
-
-            res.send(user);
+            res.send({ role: user?.role || 'user' });
         });
+
 
         // decorators related apis get
         // ApproveDecorators
@@ -129,8 +151,8 @@ async function run() {
                 const email = req.body.email;
                 const userQuery = { email }
                 const updateUser = {
-                    $set : {
-                        role : 'decorator'
+                    $set: {
+                        role: 'decorator'
                     }
                 }
                 const userResult = await userCollection.updateOne(userQuery, updateUser);
