@@ -12,7 +12,12 @@ console.log(trackingId);
 
 const admin = require("firebase-admin");
 
-const serviceAccount = require("./styledecor-firebase-adminsdk.json");
+// const serviceAccount = require("./styledecor-firebase-adminsdk.json");
+
+// const serviceAccount = require("./firebase-admin-key.json");
+
+const decoded = Buffer.from(process.env.FB_SERVICE_KEY, 'base64').toString('utf8')
+const serviceAccount = JSON.parse(decoded);
 
 admin.initializeApp({
     credential: admin.credential.cert(serviceAccount)
@@ -58,7 +63,7 @@ const client = new MongoClient(uri, {
 async function run() {
     try {
         // Connect the client to the server	(optional starting in v4.7)
-        await client.connect();
+        // await client.connect();
 
         const db = client.db('style_deco_db');
         const decorationServicesCollection = db.collection('packages');
@@ -127,6 +132,24 @@ async function run() {
             res.send(result);
         })
 
+        // Get single user by email
+        // UserProfile
+        app.get('/users/profile', verifyFBToken, async (req, res) => {
+            const email = req.query.email;
+
+            if (!email) {
+                return res.status(400).send({ message: "Email is required" });
+            }
+
+            const user = await userCollection.findOne({ email });
+            console.log(user);
+            if (!user) {
+                return res.status(404).send({ message: "User not found" });
+            }
+
+            res.send(user);
+        });
+
         // user get by email for role
         app.get('/users/:email/role', async (req, res) => {
             const email = req.params.email;
@@ -155,7 +178,7 @@ async function run() {
 
         // decorators related apis update status pending to approved and user role update
         // ApproveDecorators
-        app.patch('/decorators/:id', verifyFBToken, async (req, res) => {
+        app.patch('/decorators/:id', verifyFBToken, verifyAdmin, async (req, res) => {
             const { id } = req.params;
             const { status } = req.body;
             const result = await decoratorsCollection.updateOne(
@@ -490,8 +513,8 @@ async function run() {
 
 
         // Send a ping to confirm a successful connection
-        await client.db("admin").command({ ping: 1 });
-        console.log("Pinged your deployment. You successfully connected to MongoDB!");
+        // await client.db("admin").command({ ping: 1 });
+        // console.log("Pinged your deployment. You successfully connected to MongoDB!");
     } finally {
         // Ensures that the client will close when you finish
         // await client.close();
