@@ -173,6 +173,7 @@ async function run() {
             const query = {}
             if (req.query.status) {
                 query.status = req.query.status;
+                query.workStatus = req.query.workStatus; // AssignDecorators
             }
             const cursor = decoratorsCollection.find(query)
             const result = await cursor.toArray();
@@ -186,7 +187,7 @@ async function run() {
             const { status } = req.body;
             const result = await decoratorsCollection.updateOne(
                 { _id: new ObjectId(id) },
-                { $set: { status } }
+                { $set: { status, workStatus: 'available' } } // AssignDecorators workStatus
             );
             if (status === 'approved') {
                 const email = req.body.email;
@@ -373,7 +374,7 @@ async function run() {
                 query.customerEmail = email;
             }
 
-            if(assignStatus){
+            if (assignStatus) {
                 query.assignStatus = assignStatus;
             }
 
@@ -383,6 +384,42 @@ async function run() {
             const result = await cursor.toArray();
             res.send(result);
         })
+
+        // AssignDecorators
+        app.patch('/bookings/assign/:id', async (req, res) => {
+            const id = req.params.id;
+            const { decoratorId, decoratorName, decoratorEmail } = req.body;
+
+            const bookingUpdate = {
+                $set: {
+                    assignStatus: 'assigned',
+                    assignedDecorator: {
+                        decoratorId,
+                        decoratorName,
+                        decoratorEmail
+                    }
+                }
+            };
+
+            const decoratorUpdate = {
+                $set: {
+                    workStatus: 'busy'
+                }
+            };
+
+            const bookingResult = await bookingsCollection.updateOne(
+                { _id: new ObjectId(id) },
+                bookingUpdate
+            );
+
+            await decoratorsCollection.updateOne(
+                { _id: new ObjectId(decoratorId) },
+                decoratorUpdate
+            );
+
+            res.send(bookingResult);
+        });
+
 
 
         // booking for payment get api for certain services
@@ -473,7 +510,7 @@ async function run() {
                 const update = {
                     $set: {
                         status: 'Paid',
-                        assignStatus: 'pending-assign',
+                        assignStatus: 'pending-assign', // AssignDecorators
                         trackingId: trackingId
                     }
                 }
