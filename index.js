@@ -95,6 +95,7 @@ async function run() {
 
 
         // users related apis to get the all users from database for the role
+        // ManageUsers
         app.get('/users', verifyFBToken, async (req, res) => {
             const cursor = userCollection.find();
             const result = await cursor.toArray();
@@ -102,6 +103,7 @@ async function run() {
         })
 
         // users related apis to change the role as admin
+        // ManageUsers
         app.patch('/users/:id/role', verifyFBToken, verifyAdmin, async (req, res) => {
             const id = req.params.id;
             const roleInfo = req.body;
@@ -116,6 +118,7 @@ async function run() {
         })
 
         // users related apis to store in database for the role
+        // Register and Social login/register
         app.post('/users', async (req, res) => {
             const user = req.body;
             user.role = 'user';
@@ -331,6 +334,7 @@ async function run() {
         // booking post api
         // by clicking Book Now Service Details Page save booking data into MongoDB
         // collection name (bookings)
+        // Service Details Page
         app.post("/bookings", async (req, res) => {
             try {
                 const bookingData = req.body;
@@ -343,6 +347,7 @@ async function run() {
 
         // booking get api by email
         // Get all bookings of a specific user
+        // MyBookings
         app.get("/bookings/:email", async (req, res) => {
             try {
                 const email = req.params.email;
@@ -359,8 +364,29 @@ async function run() {
             }
         });
 
+        // AssignDecorators
+        app.get("/bookings", async (req, res) => {
+            const query = {}
+            const { email, assignStatus } = req.query;
+
+            if (email) {
+                query.customerEmail = email;
+            }
+
+            if(assignStatus){
+                query.assignStatus = assignStatus;
+            }
+
+            const options = { sort: { bookingDate: -1 } }
+
+            const cursor = bookingsCollection.find(query, options)
+            const result = await cursor.toArray();
+            res.send(result);
+        })
+
 
         // booking for payment get api for certain services
+        // Payment
         app.get("/bookings/id/:id", async (req, res) => {
             try {
                 const id = req.params.id;
@@ -373,6 +399,7 @@ async function run() {
 
 
         // booking delete/cancel api by id
+        // MyBookings
         app.delete("/bookings/:id", async (req, res) => {
             try {
                 const id = req.params.id;
@@ -386,6 +413,8 @@ async function run() {
 
         // payment related apis
         // payment create via stripe
+        // MyBookings
+        // Payment
         app.post('/create-checkout-session', async (req, res) => {
             const paymentInfo = req.body;
             const amount = paymentInfo.price;
@@ -418,6 +447,7 @@ async function run() {
         })
 
         // payment status update and store to database history called collection payments
+        // PaymentSuccess
         app.patch('/payment-success', async (req, res) => {
             const sessionId = req.query.session_id;
             // console.log('session id', sessionId);
@@ -443,6 +473,7 @@ async function run() {
                 const update = {
                     $set: {
                         status: 'Paid',
+                        assignStatus: 'pending-assign',
                         trackingId: trackingId
                     }
                 }
