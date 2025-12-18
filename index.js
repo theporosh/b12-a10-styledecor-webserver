@@ -173,6 +173,9 @@ async function run() {
             const query = {}
             if (req.query.status) {
                 query.status = req.query.status;
+
+            }
+            if (req.query.workStatus) {
                 query.workStatus = req.query.workStatus; // AssignDecorators
             }
             const cursor = decoratorsCollection.find(query)
@@ -346,24 +349,36 @@ async function run() {
             }
         });
 
-        // booking get api by email
-        // Get all bookings of a specific user
-        // MyBookings
-        app.get("/bookings/:email", async (req, res) => {
+        // booking for payment get api for certain services
+        // Payment
+        app.get("/bookings/id/:id", async (req, res) => {
             try {
-                const email = req.params.email;
-
-                const bookings = await bookingsCollection
-                    .find({ customerEmail: email })
-                    .sort({ bookingDate: 1 }) // sort by nearest date
-                    .toArray();
-
-                res.send(bookings);
-
+                const id = req.params.id;
+                const booking = await bookingsCollection.findOne({ _id: new ObjectId(id) });
+                res.send(booking);
             } catch (error) {
-                res.status(500).send({ message: "Failed to load bookings", error });
+                res.status(500).send({ message: "Failed to get booking", error });
             }
         });
+
+        // AssignedProjects / My Assigned Projects
+        // decorator work
+        app.get('/bookings/decorator', async (req, res) => {
+            const { decoratorEmail, assignStatus } = req.query;
+            const query = {}
+            if (decoratorEmail) {
+                query['assignedDecorator.decoratorEmail'] = decoratorEmail;
+            }
+            if (assignStatus) {
+                query.assignStatus = assignStatus
+            }
+
+            console.log('Decorator Query:', query);
+
+            const result = await bookingsCollection.find(query).toArray();
+            res.send(result);
+        })
+
 
         // AssignDecorators
         app.get("/bookings", async (req, res) => {
@@ -384,6 +399,27 @@ async function run() {
             const result = await cursor.toArray();
             res.send(result);
         })
+
+
+
+        // booking get api by email
+        // Get all bookings of a specific user
+        // MyBookings
+        app.get("/bookings/:email", async (req, res) => {
+            try {
+                const email = req.params.email;
+
+                const bookings = await bookingsCollection
+                    .find({ customerEmail: email })
+                    .sort({ bookingDate: 1 }) // sort by nearest date
+                    .toArray();
+
+                res.send(bookings);
+
+            } catch (error) {
+                res.status(500).send({ message: "Failed to load bookings", error });
+            }
+        });
 
         // AssignDecorators
         app.patch('/bookings/assign/:id', async (req, res) => {
@@ -418,20 +454,6 @@ async function run() {
             );
 
             res.send(bookingResult);
-        });
-
-
-
-        // booking for payment get api for certain services
-        // Payment
-        app.get("/bookings/id/:id", async (req, res) => {
-            try {
-                const id = req.params.id;
-                const booking = await bookingsCollection.findOne({ _id: new ObjectId(id) });
-                res.send(booking);
-            } catch (error) {
-                res.status(500).send({ message: "Failed to get booking", error });
-            }
         });
 
 
