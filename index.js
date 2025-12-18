@@ -364,14 +364,27 @@ async function run() {
         // AssignedProjects / My Assigned Projects
         // decorator work
         app.get('/bookings/decorator', async (req, res) => {
-            const { decoratorEmail, assignStatus } = req.query;
+            const { decoratorEmail, assignStatus, projectStatus } = req.query;
             const query = {}
+
             if (decoratorEmail) {
                 query['assignedDecorator.decoratorEmail'] = decoratorEmail;
             }
+
             if (assignStatus) {
                 query.assignStatus = assignStatus
             }
+
+            if (projectStatus) {
+                query.projectStatus = projectStatus; // CompletedProjectStatus
+            }
+
+            // if (projectStatus !== 'completed'){
+            //     query.projectStatus = {$nin: ['completed']}
+            // }
+            // else{
+            //     query.projectStatus = projectStatus
+            // }
 
             console.log('Decorator Query:', query);
 
@@ -429,6 +442,8 @@ async function run() {
             const bookingUpdate = {
                 $set: {
                     assignStatus: 'assigned',
+                    projectStatus: 'assigned',  // AssignedProjects & CompletedProjectStatus
+                    assignedAt: new Date(),      // AssignedProjects & CompletedProjectStatus
                     assignedDecorator: {
                         decoratorId,
                         decoratorName,
@@ -455,6 +470,38 @@ async function run() {
 
             res.send(bookingResult);
         });
+
+
+        // AssignedProjects 
+        // updateStatus for decorator available again
+        app.patch('/bookings/project-status/:id', async (req, res) => {
+            const id = req.params.id;
+            const { projectStatus, decoratorId } = req.body;
+
+            const updateDoc = {
+                $set: {
+                    projectStatus,
+                    ...(projectStatus === 'started' && { startedAt: new Date() }),   // CompletedProjectStatus
+                    ...(projectStatus === 'completed' && { completedAt: new Date() }) // CompletedProjectStatus
+                }
+            };
+
+            const result = await bookingsCollection.updateOne(
+                { _id: new ObjectId(id) },
+                updateDoc
+            );
+
+            // If project completed → decorator available again
+            if (projectStatus === 'completed') {
+                await decoratorsCollection.updateOne(
+                    { _id: new ObjectId(decoratorId) },
+                    { $set: { workStatus: 'available' } }
+                );
+            }
+
+            res.send(result);
+        });
+
 
 
         // booking delete/cancel api by id
